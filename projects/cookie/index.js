@@ -45,8 +45,85 @@ const addButton = homeworkContainer.querySelector('#add-button');
 // таблица со списком cookie
 const listTable = homeworkContainer.querySelector('#list-table tbody');
 
-filterNameInput.addEventListener('input', function () {});
+const cookiesMap = getCookies();
+let filterValue = '';
+updateTable();
 
-addButton.addEventListener('click', () => {});
+function getCookies() {
+  return document.cookie
+    .split(';')
+    .filter(Boolean)
+    .map((cookie) => cookie.match(/^([^=]+)=(.+)/))
+    .reduce((obj, [, name, value]) => {
+      obj.set(name, value);
+      return obj;
+    }, new Map());
+}
 
-listTable.addEventListener('click', (e) => {});
+filterNameInput.addEventListener('input', function () {
+  filterValue = this.value;
+  updateTable();
+});
+
+addButton.addEventListener('click', () => {
+  const name = encodeURIComponent(addNameInput.value.trim());
+  const value = encodeURIComponent(addValueInput.value.trim());
+  if (!name) {
+    return;
+  }
+  document.cookie = `${name}=${value}`;
+  cookiesMap.set(name, value);
+  updateTable();
+  addNameInput.value = '';
+  addValueInput.value = '';
+});
+
+listTable.addEventListener('click', (e) => {
+  const { role, cookieName } = e.target.dataset;
+  if (role === 'remove-cookie') {
+    cookiesMap.delete(cookieName);
+    document.cookie = `${cookieName}=deleted; max-age=0`;
+    updateTable();
+  }
+});
+
+function updateTable() {
+  const fragment = document.createDocumentFragment();
+  let count = 0;
+  listTable.innerHTML = '';
+
+  for (const [name, value] of cookiesMap) {
+    if (
+      filterValue &&
+      !name.toLowerCase().includes(filterValue.toLowerCase()) &&
+      !value.toLowerCase().includes(filterValue.toLowerCase())
+    ) {
+      continue;
+    }
+    count++;
+
+    const tr = document.createElement('tr');
+    const nameTd = document.createElement('td');
+    const valueTd = document.createElement('td');
+    const removeTd = document.createElement('td');
+    const removeCookie = document.createElement('button');
+
+    removeCookie.dataset.role = 'remove-cookie';
+    removeCookie.dataset.cookieName = name;
+    removeCookie.textContent = 'удалить';
+
+    nameTd.textContent = name;
+    valueTd.textContent = value;
+    valueTd.classList.add('value');
+
+    tr.append(nameTd, valueTd, removeTd);
+    removeTd.append(removeCookie);
+    fragment.append(tr);
+  }
+  if (count) {
+    listTable.parentNode.classList.remove('hidden');
+    listTable.append(fragment);
+  } else {
+    listTable.parentNode.classList.add('hidden');
+  }
+}
